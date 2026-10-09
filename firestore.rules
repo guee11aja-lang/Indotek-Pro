@@ -1,0 +1,297 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Hardened Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'guee11aja@gmail.com' ||
+        request.auth.token.email == 'gue11azaa@gmail.com'
+      );
+    }
+
+    // Entity Validators
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'role']) &&
+        data.uid is string && data.uid.size() <= 128 &&
+        data.name is string && data.name.size() <= 150 &&
+        data.email is string && data.email.size() <= 150 &&
+        data.role is string && data.role.size() <= 100;
+    }
+
+    function isValidProject(data) {
+      return data.keys().hasAll(['code', 'name', 'client', 'contractValue', 'approvedBudget', 'status']) &&
+        data.code is string && data.code.size() <= 50 &&
+        data.name is string && data.name.size() <= 200 &&
+        data.client is string && data.client.size() <= 200 &&
+        data.contractValue is number && data.contractValue >= 0 &&
+        data.approvedBudget is number && data.approvedBudget >= 0 &&
+        data.status is string && data.status.size() <= 50;
+    }
+
+    function isValidMaterial(data) {
+      return data.keys().hasAll(['code', 'name', 'currentStock', 'minStock', 'unit', 'status']) &&
+        data.code is string && data.code.size() <= 50 &&
+        data.name is string && data.name.size() <= 200 &&
+        data.currentStock is number && data.currentStock >= 0 &&
+        data.minStock is number && data.minStock >= 0 &&
+        data.unit is string && data.unit.size() <= 30 &&
+        data.status is string && data.status.size() <= 50;
+    }
+
+    function isValidPurchaseOrder(data) {
+      return data.keys().hasAll(['poNumber', 'sppNumber', 'projectName', 'supplierName', 'totalCost', 'status']) &&
+        data.poNumber is string && data.poNumber.size() <= 50 &&
+        data.sppNumber is string && data.sppNumber.size() <= 50 &&
+        data.projectName is string && data.projectName.size() <= 200 &&
+        data.supplierName is string && data.supplierName.size() <= 200 &&
+        data.totalCost is number && data.totalCost >= 0 &&
+        data.status is string && data.status.size() <= 50;
+    }
+
+    function isValidFieldReport(data) {
+      return data.keys().hasAll(['reportNumber', 'projectId', 'date', 'siteSupervisor', 'status']) &&
+        data.reportNumber is string && data.reportNumber.size() <= 50 &&
+        data.projectId is string && data.projectId.size() <= 64 &&
+        data.date is string && data.date.size() <= 30 &&
+        data.siteSupervisor is string && data.siteSupervisor.size() <= 150 &&
+        data.status is string && data.status.size() <= 50;
+    }
+
+    function isValidStockMutation(data) {
+      return data.keys().hasAll(['materialName', 'type', 'quantity', 'unit', 'referenceNo']) &&
+        data.materialName is string && data.materialName.size() <= 200 &&
+        data.type is string && data.type.size() <= 50 &&
+        data.quantity is number && data.quantity > 0 &&
+        data.unit is string && data.unit.size() <= 30 &&
+        data.referenceNo is string && data.referenceNo.size() <= 100;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['title', 'message', 'type', 'read']) &&
+        data.title is string && data.title.size() <= 200 &&
+        data.message is string && data.message.size() <= 1000 &&
+        data.type is string && data.type.size() <= 50 &&
+        data.read is bool;
+    }
+
+    function isValidActivity(data) {
+      return data.keys().hasAll(['user', 'action', 'projectName', 'timestamp']) &&
+        data.user is string && data.user.size() <= 150 &&
+        data.action is string && data.action.size() <= 500 &&
+        data.projectName is string && data.projectName.size() <= 200 &&
+        data.timestamp is string && data.timestamp.size() <= 50;
+    }
+
+    function isValidBudgetRevision(data) {
+      return data.keys().hasAll(['projectId', 'projectName', 'revisionNumber', 'title', 'originalAmount', 'proposedAmount', 'varianceAmount', 'status', 'submittedBy']) &&
+        data.projectId is string && data.projectId.size() <= 64 &&
+        data.projectName is string && data.projectName.size() <= 200 &&
+        data.revisionNumber is string && data.revisionNumber.size() <= 50 &&
+        data.title is string && data.title.size() <= 200 &&
+        data.originalAmount is number && data.originalAmount >= 0 &&
+        data.proposedAmount is number && data.proposedAmount >= 0 &&
+        data.status is string && data.status.size() <= 50 &&
+        data.submittedBy is string && data.submittedBy.size() <= 150;
+    }
+
+    function isValidPettyCash(data) {
+      return data.keys().hasAll(['pettyCashNo', 'projectId', 'projectName', 'requester', 'amount', 'purpose', 'status']) &&
+        data.pettyCashNo is string && data.pettyCashNo.size() <= 50 &&
+        data.projectId is string && data.projectId.size() <= 64 &&
+        data.projectName is string && data.projectName.size() <= 200 &&
+        data.requester is string && data.requester.size() <= 150 &&
+        data.amount is number && data.amount > 0 &&
+        data.purpose is string && data.purpose.size() <= 500 &&
+        data.status is string && data.status.size() <= 50;
+    }
+
+    function isValidTeamMember(data) {
+      return data.keys().hasAll(['name', 'nip', 'role', 'email', 'status']) &&
+        data.name is string && data.name.size() <= 150 &&
+        data.nip is string && data.nip.size() <= 50 &&
+        data.role is string && data.role.size() <= 100 &&
+        data.email is string && data.email.size() <= 150 &&
+        data.status is string && data.status.size() <= 50;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['action', 'actor', 'workspaceId', 'recordType', 'recordId', 'details', 'timestamp', 'correlationId']) &&
+        data.action is string && data.action.size() <= 100 &&
+        data.workspaceId is string && data.workspaceId.size() <= 64 &&
+        data.recordType is string && data.recordType.size() <= 50 &&
+        data.recordId is string && data.recordId.size() <= 64 &&
+        data.details is string && data.details.size() <= 1000 &&
+        data.timestamp is string && data.timestamp.size() <= 50 &&
+        data.correlationId is string && data.correlationId.size() <= 64;
+    }
+
+    function isValidStockAdjustment(data) {
+      return data.keys().hasAll(['adjustmentNo', 'projectId', 'projectName', 'materialId', 'materialName', 'previousStock', 'physicalStock', 'varianceQuantity', 'unit', 'reason', 'status']) &&
+        data.adjustmentNo is string && data.adjustmentNo.size() <= 50 &&
+        data.projectId is string && data.projectId.size() <= 64 &&
+        data.projectName is string && data.projectName.size() <= 200 &&
+        data.materialId is string && data.materialId.size() <= 64 &&
+        data.materialName is string && data.materialName.size() <= 200 &&
+        data.previousStock is number && data.previousStock >= 0 &&
+        data.physicalStock is number && data.physicalStock >= 0 &&
+        data.varianceQuantity is number &&
+        data.unit is string && data.unit.size() <= 30 &&
+        data.reason is string && data.reason.size() <= 500 &&
+        data.status is string && data.status.size() <= 50;
+    }
+
+    // Admins Collection
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow create: if isSignedIn() && isOwner(userId) && isValidUser(incoming());
+      allow update: if isSignedIn() && (isOwner(userId) || isAdmin()) && isValidUser(incoming()) &&
+        incoming().uid == existing().uid &&
+        (isAdmin() || incoming().role == existing().role);
+      allow delete: if isAdmin();
+    }
+
+    // Projects Collection
+    match /projects/{projectId} {
+      allow read: if isSignedIn() && isValidId(projectId);
+      allow create: if isSignedIn() && isValidId(projectId) && isValidProject(incoming());
+      allow update: if isSignedIn() && isValidId(projectId) && isValidProject(incoming()) &&
+        incoming().code == existing().code;
+      allow delete: if isAdmin() && isValidId(projectId);
+    }
+
+    // Materials Catalog Collection
+    match /materials/{materialId} {
+      allow read: if isSignedIn() && isValidId(materialId);
+      allow create: if isSignedIn() && isValidId(materialId) && isValidMaterial(incoming());
+      allow update: if isSignedIn() && isValidId(materialId) && isValidMaterial(incoming()) &&
+        incoming().code == existing().code;
+      allow delete: if isAdmin() && isValidId(materialId);
+    }
+
+    // Purchase Orders Collection (Approval Workflow Protected)
+    match /purchase_orders/{poId} {
+      allow read: if isSignedIn() && isValidId(poId);
+      allow create: if isSignedIn() && isValidId(poId) && isValidPurchaseOrder(incoming());
+      allow update: if isSignedIn() && isValidId(poId) && isValidPurchaseOrder(incoming()) &&
+        incoming().poNumber == existing().poNumber &&
+        (isAdmin() ||
+         // Transitions allowed before terminal states
+         (existing().status in ['Draft', 'Menunggu'] && incoming().status in ['Menunggu', 'Disetujui', 'Ditolak']) ||
+         (existing().status == 'Disetujui' && incoming().status in ['Dikirim', 'Selesai']));
+      allow delete: if isAdmin() && isValidId(poId);
+    }
+
+    // Field Reports Collection
+    match /field_reports/{reportId} {
+      allow read: if isSignedIn() && isValidId(reportId);
+      allow create: if isSignedIn() && isValidId(reportId) && isValidFieldReport(incoming());
+      allow update: if isSignedIn() && isValidId(reportId) && isValidFieldReport(incoming()) &&
+        incoming().reportNumber == existing().reportNumber;
+      allow delete: if isAdmin() && isValidId(reportId);
+    }
+
+    // Stock Mutations Collection
+    match /stock_mutations/{mutationId} {
+      allow read: if isSignedIn() && isValidId(mutationId);
+      allow create: if isSignedIn() && isValidId(mutationId) && isValidStockMutation(incoming());
+      allow update: if isAdmin() && isValidId(mutationId) && isValidStockMutation(incoming());
+      allow delete: if isAdmin() && isValidId(mutationId);
+    }
+
+    // Stock Adjustments Collection (Opname Fisik Workflow Protected)
+    match /stock_adjustments/{adjId} {
+      allow read: if isSignedIn() && isValidId(adjId);
+      allow create: if isSignedIn() && isValidId(adjId) && isValidStockAdjustment(incoming()) && incoming().status == 'Menunggu';
+      allow update: if isSignedIn() && isValidId(adjId) && isValidStockAdjustment(incoming()) &&
+        incoming().adjustmentNo == existing().adjustmentNo &&
+        (isAdmin() || (existing().status == 'Menunggu' && incoming().status in ['Disetujui', 'Ditolak']));
+      allow delete: if isAdmin() && isValidId(adjId);
+    }
+
+    // Notifications Collection
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && isValidId(notificationId);
+      allow create: if isSignedIn() && isValidId(notificationId) && isValidNotification(incoming());
+      allow update: if isSignedIn() && isValidId(notificationId) && isValidNotification(incoming());
+      allow delete: if isSignedIn() && isValidId(notificationId);
+    }
+
+    // Operational Activities Audit Stream
+    match /activities/{activityId} {
+      allow read: if isSignedIn() && isValidId(activityId);
+      allow create: if isSignedIn() && isValidId(activityId) && isValidActivity(incoming());
+      allow update, delete: if false; // Append-only activity stream
+    }
+
+    // Budget Revisions Workflow Collection (Protected)
+    match /budget_revisions/{revId} {
+      allow read: if isSignedIn() && isValidId(revId);
+      allow create: if isSignedIn() && isValidId(revId) && isValidBudgetRevision(incoming()) && incoming().status == 'Menunggu';
+      allow update: if isSignedIn() && isValidId(revId) && isValidBudgetRevision(incoming()) &&
+        incoming().revisionNumber == existing().revisionNumber &&
+        (isAdmin() || (existing().status == 'Menunggu' && incoming().status in ['Disetujui', 'Ditolak']));
+      allow delete: if isAdmin() && isValidId(revId);
+    }
+
+    // Petty Cash Collection
+    match /petty_cash/{cashId} {
+      allow read: if isSignedIn() && isValidId(cashId);
+      allow create: if isSignedIn() && isValidId(cashId) && isValidPettyCash(incoming());
+      allow update: if isSignedIn() && isValidId(cashId) && isValidPettyCash(incoming()) &&
+        incoming().pettyCashNo == existing().pettyCashNo &&
+        (isAdmin() ||
+         (existing().status == 'Menunggu' && incoming().status in ['Disetujui', 'Ditolak']) ||
+         (existing().status == 'Disetujui' && incoming().status == 'Dicairkan'));
+      allow delete: if isAdmin() && isValidId(cashId);
+    }
+
+    // Team Members Collection (Role & Membership Administration Protected)
+    match /team_members/{memberId} {
+      allow read: if isSignedIn() && isValidId(memberId);
+      allow create: if isSignedIn() && isValidId(memberId) && isValidTeamMember(incoming()) && isAdmin();
+      allow update: if isSignedIn() && isValidId(memberId) && isValidTeamMember(incoming()) &&
+        (isAdmin() || (incoming().role == existing().role && incoming().status == existing().status));
+      allow delete: if isAdmin() && isValidId(memberId);
+    }
+
+    // Enterprise Audit Logs (Immutable Append-Only Trail)
+    match /audit_logs/{logId} {
+      allow read: if isSignedIn() && isValidId(logId);
+      allow create: if isSignedIn() && isValidId(logId) && isValidAuditLog(incoming());
+      allow update, delete: if false; // Immutable audit log: cannot be edited or erased
+    }
+  }
+}
